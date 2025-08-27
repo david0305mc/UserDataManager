@@ -18,9 +18,11 @@ public class UIIntro : MonoBehaviour
     {
         // await DataManager.Instance.LoadDataAsync();
         // await DataManager.Instance.LoadConfigTable();
-        string uid = PlayerPrefs.GetString("uid", "1000");
+        // string uid = PlayerPrefs.GetString("uid", "1000");
         // await UserDataManager.Instance.LoadOrCreateAsync(uid);
-        PlayerPrefs.SetString("uid", uid);
+        // PlayerPrefs.SetString("uid", uid);
+        await UserDataManager.Instance.Load();
+
         
         var mainSceneAsync = SceneManager.LoadSceneAsync(GameDefine.MainScene);
         await UniTask.WaitUntil(() => mainSceneAsync.isDone);

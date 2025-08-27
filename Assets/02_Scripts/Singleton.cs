@@ -2,23 +2,20 @@ using UnityEngine;
 
 public class Singleton<T> where T : Singleton<T>, new()
 {
-    static T instnace;
+    private static T _instance;
+
     public static T Instance
     {
         get
         {
-            if (instnace == null)
+            if (_instance == null)
             {
-                instnace = new T();
-                instnace.init();
+                _instance = new T();
+                _instance.init();
             }
-
-            return instnace;
+            return _instance;
         }
     }
 
-    protected virtual void init()
-    {
-
-    }
+    protected virtual void init() { }
 }
