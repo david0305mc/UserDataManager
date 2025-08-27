@@ -12,7 +12,7 @@ using UnityEngine;
 [Serializable]
 public sealed class CoralDataDto
 {
-    public int CoralId;
+    public long CoralId;
     public int CoralLevel;
 }
 
@@ -20,11 +20,11 @@ public sealed class CoralDataDto
 public sealed class UserDataDto
 {
     public int Version = 1;                    // 스키마 마이그레이션 대비
-    public int StoneId;
+    public long StoneId;
     public int StoneLevel = 1;
-    public Dictionary<int, CoralDataDto> Corals = new Dictionary<int, CoralDataDto>();
+    public Dictionary<long, CoralDataDto> Corals = new Dictionary<long, CoralDataDto>();
     public List<ItemDataDto> Items = new List<ItemDataDto>();
-    public Dictionary<int, SkillDataDto> Skills = new Dictionary<int, SkillDataDto>(); 
+    public Dictionary<long, SkillDataDto> Skills = new Dictionary<long, SkillDataDto>(); 
 }
 
 [Serializable]
@@ -61,10 +61,10 @@ public class SkillData
 
 public sealed class CoralData
 {
-    public int CoralId { get; private set; }
+    public long CoralId { get; private set; }
     public int CoralLevel { get; private set; }
 
-    public CoralData(int coralId, int level)
+    public CoralData(long coralId, int level)
     {
         CoralId = coralId;
         CoralLevel = Mathf.Max(1, level);
@@ -76,34 +76,34 @@ public sealed class CoralData
 [Serializable]
 public sealed class UserData
 {
-    public int StoneId { get; private set; }
+    public long StoneId { get; private set; }
 
     private readonly ReactiveProperty<int> _stoneLevel = new(1);
     public IReadOnlyReactiveProperty<int> StoneLevel => _stoneLevel;
 
-    private readonly Dictionary<int, CoralData> _corals = new();
-    public IReadOnlyDictionary<int, CoralData> Corals => _corals;
+    private readonly Dictionary<long, CoralData> _corals = new();
+    public IReadOnlyDictionary<long, CoralData> Corals => _corals;
 
     private readonly List<ItemData> _items = new();
     public IReadOnlyList<ItemData> Items => _items;
 
-    private readonly Dictionary<int, SkillData> _skills = new();
-    public IReadOnlyDictionary<int, SkillData> Skills => _skills;
+    private readonly Dictionary<long, SkillData> _skills = new();
+    public IReadOnlyDictionary<long, SkillData> Skills => _skills;
 
     public UserData() { }
 
-    public void SetStoneId(int id) => StoneId = id;
+    public void SetStoneId(long id) => StoneId = id;
     public void SetStoneLevel(int level) => _stoneLevel.Value = Mathf.Max(1, level);
 
-    public bool TryGetCoral(int coralId, out CoralData coral) => _corals.TryGetValue(coralId, out coral);
-    public bool TryGetSkill(int skillId, out SkillData skill) => _skills.TryGetValue(skillId, out skill);
-    public bool TryGetItem(int itemId, out ItemData item)
+    public bool TryGetCoral(long coralId, out CoralData coral) => _corals.TryGetValue(coralId, out coral);
+    public bool TryGetSkill(long skillId, out SkillData skill) => _skills.TryGetValue(skillId, out skill);
+    public bool TryGetItem(long itemId, out ItemData item)
     {
         item = _items.Find(i => i.ItemID == itemId);
         return item != null;
     }
 
-    public void UpsertCoral(int coralId, int level)
+    public void UpsertCoral(long coralId, int level)
     {
         if (_corals.TryGetValue(coralId, out var existing))
         {
@@ -114,7 +114,7 @@ public sealed class UserData
             _corals[coralId] = new CoralData(coralId, level);
         }
     }
-    public void UpsertItem(int itemId, int level)
+    public void UpsertItem(long itemId, int level)
     {
         var item = _items.Find(i => i.ItemID == itemId);
         if (item != null)
@@ -126,7 +126,7 @@ public sealed class UserData
             _items.Add(new ItemData { ItemID = itemId, ItemLevel = Mathf.Max(1, level) });
         }
     }
-    public void UpsertSkill(int skillId, int level)
+    public void UpsertSkill(long skillId, int level)
     {
         if (_skills.TryGetValue(skillId, out var existing))
         {
@@ -138,7 +138,7 @@ public sealed class UserData
         }        
     }
 
-    public bool RemoveCoral(int coralId) => _corals.Remove(coralId);
+    public bool RemoveCoral(long coralId) => _corals.Remove(coralId);
 
     public void InitData()
     {
@@ -313,7 +313,7 @@ public partial class UserDataManager : Singleton<UserDataManager>, IDisposable
 
     // ====== Domain Helpers (변경 + 저장 트리거) ======
 
-    public void SetStone(int stoneId)
+    public void SetStone(long stoneId)
     {
         UserData.SetStoneId(stoneId);
         RequestSave();
@@ -325,24 +325,24 @@ public partial class UserDataManager : Singleton<UserDataManager>, IDisposable
         RequestSave();
     }
 
-    public void UpsertCoral(int coralId, int level)
+    public void UpsertCoral(long coralId, int level)
     {
         UserData.UpsertCoral(coralId, level);
         RequestSave();
     }
 
-    public bool RemoveCoral(int coralId)
+    public bool RemoveCoral(long coralId)
     {
         var removed = UserData.RemoveCoral(coralId);
         if (removed) RequestSave();
         return removed;
     }
-    public void UpsertItem(int itemId, int level)
+    public void UpsertItem(long itemId, int level)
     {
         UserData.UpsertItem(itemId, level);
         RequestSave();
     }
-    public void UpsertSkill(int skillId, int level)
+    public void UpsertSkill(long skillId, int level)
     {
         UserData.UpsertSkill(skillId, level);
         RequestSave();
