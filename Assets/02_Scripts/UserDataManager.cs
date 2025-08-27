@@ -47,21 +47,18 @@ public class SkillDataDto
 /// </summary>
 /// 
 /// 
-[Serializable]
 public class ItemData
 {
     public long ItemID;
     public int ItemLevel;
 }
 
-[Serializable]
 public class SkillData
 {
     public long SkillID;
-    public int SkillLevel;
+    public ReactiveProperty<int> SkillLevel;
 }
 
-[Serializable]
 public sealed class CoralData
 {
     public int CoralId { get; private set; }
@@ -133,11 +130,11 @@ public sealed class UserData
     {
         if (_skills.TryGetValue(skillId, out var existing))
         {
-            existing.SkillLevel = Mathf.Max(1, level);
+            existing.SkillLevel.Value = Mathf.Max(1, level);
         }
         else
         {
-            _skills[skillId] = new SkillData { SkillID = skillId, SkillLevel = Mathf.Max(1, level) };
+            _skills[skillId] = new SkillData { SkillID = skillId, SkillLevel = new ReactiveProperty<int>(Mathf.Max(1, level))  };
         }        
     }
 
@@ -170,7 +167,7 @@ public sealed class UserData
         _skills.Clear();
         for (int i = 1; i < 10; i++)
         {
-            _skills[i] = new SkillData { SkillID = i, SkillLevel = 1 }; 
+            _skills[i] = new SkillData { SkillID = i, SkillLevel =new ReactiveProperty<int>(1) }; 
         }
     }
 }
@@ -283,7 +280,7 @@ public sealed class UserDataManager : Singleton<UserDataManager>, IDisposable
             dto.Skills.Add(new SkillDataDto
             {
                 SkillID = skill.Value.SkillID,
-                SkillLevel = skill.Value.SkillLevel
+                SkillLevel = skill.Value.SkillLevel.Value
             });
         }
         return dto;

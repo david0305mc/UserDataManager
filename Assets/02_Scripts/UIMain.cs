@@ -50,7 +50,7 @@ public class UIMain : MonoBehaviour
             int randomSkillId = Random.Range(1, 6);
             if (UserDataManager.Instance.UserData.TryGetSkill(randomSkillId, out var skill))
             {
-                UserDataManager.Instance.UpsertSkill(randomSkillId, skill.SkillLevel + 1);
+                UserDataManager.Instance.UpsertSkill(randomSkillId, skill.SkillLevel.Value + 1);
             }
             else
             {
