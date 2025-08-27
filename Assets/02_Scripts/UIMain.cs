@@ -6,6 +6,8 @@ public class UIMain : MonoBehaviour
 {
     [SerializeField] private Button increaseLevelButton;
     [SerializeField] private Button increaseRandomCoralLevelButton;
+    [SerializeField] private Button itemButton;
+    [SerializeField] private Button skillButton;
     [SerializeField] private TextMeshProUGUI descText;
 
     void Awake()
@@ -29,6 +31,33 @@ public class UIMain : MonoBehaviour
             }
             UpdateUI();
         });
+        itemButton.onClick.AddListener(() =>
+        {
+            int randomItemId = Random.Range(1, 6);
+            if (UserDataManager.Instance.UserData.TryGetItem(randomItemId, out var item))
+            {
+                UserDataManager.Instance.UpsertItem(randomItemId, item.ItemLevel + 1);
+            }
+            else
+            {
+                UserDataManager.Instance.UpsertItem(randomItemId, 1);
+            }
+            
+            UpdateUI();
+        });
+        skillButton.onClick.AddListener(() =>
+        {
+            int randomSkillId = Random.Range(1, 6);
+            if (UserDataManager.Instance.UserData.TryGetSkill(randomSkillId, out var skill))
+            {
+                UserDataManager.Instance.UpsertSkill(randomSkillId, skill.SkillLevel + 1);
+            }
+            else
+            {
+                UserDataManager.Instance.UpsertSkill(randomSkillId, 1);
+            }
+            UpdateUI();
+        });
         UpdateUI();
     }
     private void UpdateUI()
@@ -37,6 +66,16 @@ public class UIMain : MonoBehaviour
         foreach (var coral in UserDataManager.Instance.UserData.Corals.Values)
         {
             descText.text += $" - Coral {coral.CoralId}: Level {coral.CoralLevel}\n";
+        }
+        descText.text += "Skills:\n";
+        foreach (var skill in UserDataManager.Instance.UserData.Skills.Values)
+        {
+            descText.text += $" - Skill {skill.SkillID}: Level {skill.SkillLevel}\n";
+        }
+        descText.text += "Items:\n";
+        foreach (var item in UserDataManager.Instance.UserData.Items)
+        {
+            descText.text += $" - Item {item.ItemID}: Level {item.ItemLevel}\n";
         }
     }
 

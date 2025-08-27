@@ -23,12 +23,44 @@ public sealed class UserDataDto
     public int StoneId;
     public int StoneLevel = 1;
     public Dictionary<int, CoralDataDto> Corals = new Dictionary<int, CoralDataDto>();
+    public List<ItemDataDto> Items = new List<ItemDataDto>();
+    public List<SkillDataDto> Skills = new List<SkillDataDto>();
+}
+
+[Serializable]
+public class ItemDataDto
+{
+    public long ItemID;
+    public int ItemLevel;
+}
+
+[Serializable]
+public class SkillDataDto
+{
+    public long SkillID;
+    public int SkillLevel;
 }
 
 /// <summary>
 /// 런타임 모델(게임 로직에서 사용).
 /// 내부 상태는 캡슐화하고, 읽기 전용 인터페이스로만 노출한다.
 /// </summary>
+/// 
+/// 
+[Serializable]
+public class ItemData
+{
+    public long ItemID;
+    public int ItemLevel;
+}
+
+[Serializable]
+public class SkillData
+{
+    public long SkillID;
+    public int SkillLevel;
+}
+
 [Serializable]
 public sealed class CoralData
 {
@@ -55,12 +87,24 @@ public sealed class UserData
     private readonly Dictionary<int, CoralData> _corals = new();
     public IReadOnlyDictionary<int, CoralData> Corals => _corals;
 
+    private readonly List<ItemData> _items = new();
+    public IReadOnlyList<ItemData> Items => _items;
+
+    private readonly Dictionary<int, SkillData> _skills = new();
+    public IReadOnlyDictionary<int, SkillData> Skills => _skills;
+
     public UserData() { }
 
     public void SetStoneId(int id) => StoneId = id;
     public void SetStoneLevel(int level) => _stoneLevel.Value = Mathf.Max(1, level);
 
     public bool TryGetCoral(int coralId, out CoralData coral) => _corals.TryGetValue(coralId, out coral);
+    public bool TryGetSkill(int skillId, out SkillData skill) => _skills.TryGetValue(skillId, out skill);
+    public bool TryGetItem(int itemId, out ItemData item)
+    {
+        item = _items.Find(i => i.ItemID == itemId);
+        return item != null;
+    }
 
     public void UpsertCoral(int coralId, int level)
     {
@@ -73,12 +117,37 @@ public sealed class UserData
             _corals[coralId] = new CoralData(coralId, level);
         }
     }
+    public void UpsertItem(int itemId, int level)
+    {
+        var item = _items.Find(i => i.ItemID == itemId);
+        if (item != null)
+        {
+            item.ItemLevel = Mathf.Max(1, level);
+        }
+        else
+        {
+            _items.Add(new ItemData { ItemID = itemId, ItemLevel = Mathf.Max(1, level) });
+        }
+    }
+    public void UpsertSkill(int skillId, int level)
+    {
+        if (_skills.TryGetValue(skillId, out var existing))
+        {
+            existing.SkillLevel = Mathf.Max(1, level);
+        }
+        else
+        {
+            _skills[skillId] = new SkillData { SkillID = skillId, SkillLevel = Mathf.Max(1, level) };
+        }        
+    }
 
     public bool RemoveCoral(int coralId) => _corals.Remove(coralId);
 
     public void InitData()
     {
         InitCorals();
+        InitItems();
+        InitSkills();
     }
     private void InitCorals()
     {
@@ -86,6 +155,22 @@ public sealed class UserData
         for (int i = 1; i < 10; i++)
         {
             _corals[i] = new CoralData(i, 1);
+        }
+    }
+    private void InitItems()
+    {
+        _items.Clear();
+        for (int i = 1; i < 10; i++)
+        {
+            _items.Add(new ItemData { ItemID = i, ItemLevel = 1 });
+        }
+    }
+    private void InitSkills()
+    {
+        _skills.Clear();
+        for (int i = 1; i < 10; i++)
+        {
+            _skills[i] = new SkillData { SkillID = i, SkillLevel = 1 }; 
         }
     }
 }
@@ -172,7 +257,9 @@ public sealed class UserDataManager : Singleton<UserDataManager>, IDisposable
             Version = 1,
             StoneId = runtime.StoneId,
             StoneLevel = runtime.StoneLevel.Value,
-            Corals = new Dictionary<int, CoralDataDto>()
+            Corals = new Dictionary<int, CoralDataDto>(),
+            Items = new List<ItemDataDto>(),
+            Skills = new List<SkillDataDto>()
         };
 
         foreach (var kv in runtime.Corals)
@@ -182,6 +269,22 @@ public sealed class UserDataManager : Singleton<UserDataManager>, IDisposable
                 CoralId = kv.Value.CoralId,
                 CoralLevel = kv.Value.CoralLevel
             };
+        }
+        foreach (var item in runtime.Items)
+        {
+            dto.Items.Add(new ItemDataDto
+            {
+                ItemID = item.ItemID,
+                ItemLevel = item.ItemLevel
+            });
+        }
+        foreach (var skill in runtime.Skills)
+        {
+            dto.Skills.Add(new SkillDataDto
+            {
+                SkillID = skill.Value.SkillID,
+                SkillLevel = skill.Value.SkillLevel
+            });
         }
         return dto;
     }
@@ -197,6 +300,16 @@ public sealed class UserDataManager : Singleton<UserDataManager>, IDisposable
         {
             foreach (var kv in dto.Corals)
                 runtime.UpsertCoral(kv.Key, Mathf.Max(1, kv.Value.CoralLevel));
+        }
+        if (dto.Items != null)
+        {
+            foreach (var item in dto.Items)
+                runtime.UpsertItem((int)item.ItemID, Mathf.Max(1, item.ItemLevel));
+        }
+        if (dto.Skills != null)
+        {
+            foreach (var skill in dto.Skills)
+                runtime.UpsertSkill((int)skill.SkillID, Mathf.Max(1, skill.SkillLevel));
         }
         // 필요시 Version 스위치로 마이그레이션
         return runtime;
@@ -293,5 +406,15 @@ public sealed class UserDataManager : Singleton<UserDataManager>, IDisposable
         var removed = UserData.RemoveCoral(coralId);
         if (removed) RequestSave();
         return removed;
+    }
+    public void UpsertItem(int itemId, int level)
+    {
+        UserData.UpsertItem(itemId, level);
+        RequestSave();
+    }
+    public void UpsertSkill(int skillId, int level)
+    {
+        UserData.UpsertSkill(skillId, level);
+        RequestSave();
     }
 }
