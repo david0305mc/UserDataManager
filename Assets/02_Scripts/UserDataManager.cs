@@ -172,49 +172,6 @@ public sealed class UserData
 
 public partial class UserDataManager : Singleton<UserDataManager>, IDisposable
 {
-    private static readonly string _dirPath = Application.persistentDataPath;
-    private static readonly string _fileName = "userdata.json";
-    private static readonly string _savePath = Path.Combine(_dirPath, _fileName);
-
-    private readonly Subject<Unit> _saveRequest = new();
-    private CompositeDisposable _disposables = new CompositeDisposable();
-    private IDisposable _autoSaveSubscription;
-
-    public UserData UserData { get; private set; } = new();
-
-    private static readonly JsonSerializerSettings _jsonSettings = new()
-    {
-        MissingMemberHandling = MissingMemberHandling.Ignore,
-        NullValueHandling = NullValueHandling.Ignore,
-        DefaultValueHandling = DefaultValueHandling.Populate,
-        Formatting = Formatting.Indented
-    };
-
-    /// <summary>
-    /// Non-MB 싱글톤 초기화 훅. 여기서 스트림/디바운스 준비를 한다.
-    /// </summary>
-    protected override void init()
-    {
-        // 저장 요청이 몰릴 때 500ms 디바운스 후 1회 저장 (메인스레드에서 실행)
-        _autoSaveSubscription = _saveRequest
-            .ObserveOnMainThread()
-            .Throttle(TimeSpan.FromMilliseconds(500))
-            .Subscribe(_ => Save());
-
-        _disposables.Add(_autoSaveSubscription);
-    }
-
-    public void Dispose()
-    {
-        _disposables?.Dispose();
-        _disposables = new CompositeDisposable(); // 재사용 가능하게 초기화(선택)
-    }
-
-    // ====== Public API ======
-
-    /// <summary>디바운스 저장 트리거.</summary>
-    public void RequestSave() => _saveRequest.OnNext(Unit.Default);
-
     /// <summary>즉시 저장(디바운스 미적용). 보통은 RequestSave() 사용.</summary>
     public async UniTask Save()
     {
@@ -230,7 +187,7 @@ public partial class UserDataManager : Singleton<UserDataManager>, IDisposable
     {
         var dto = await LoadAsync();
         dto ??= new UserDataDto();
-        UserData = dto.FromDto(); 
+        UserData = dto.FromDto();
 
         // 대표 변경 스트림 → 디바운스 저장
         var sub = UserData.StoneLevel
@@ -307,6 +264,54 @@ public partial class UserDataManager : Singleton<UserDataManager>, IDisposable
             return new UserDataDto();
         }
     }
+}
+
+public partial class UserDataManager : Singleton<UserDataManager>, IDisposable
+{
+    private static readonly string _dirPath = Application.persistentDataPath;
+    private static readonly string _fileName = "userdata.json";
+    private static readonly string _savePath = Path.Combine(_dirPath, _fileName);
+
+    private readonly Subject<Unit> _saveRequest = new();
+    private CompositeDisposable _disposables = new CompositeDisposable();
+    private IDisposable _autoSaveSubscription;
+
+    public UserData UserData { get; private set; } = new();
+
+    private static readonly JsonSerializerSettings _jsonSettings = new()
+    {
+        MissingMemberHandling = MissingMemberHandling.Ignore,
+        NullValueHandling = NullValueHandling.Ignore,
+        DefaultValueHandling = DefaultValueHandling.Populate,
+        Formatting = Formatting.Indented
+    };
+
+    /// <summary>
+    /// Non-MB 싱글톤 초기화 훅. 여기서 스트림/디바운스 준비를 한다.
+    /// </summary>
+    protected override void init()
+    {
+        // 저장 요청이 몰릴 때 500ms 디바운스 후 1회 저장 (메인스레드에서 실행)
+        _autoSaveSubscription = _saveRequest
+            .ObserveOnMainThread()
+            .Throttle(TimeSpan.FromMilliseconds(500))
+            .Subscribe(_ => Save());
+
+        _disposables.Add(_autoSaveSubscription);
+    }
+
+    public void Dispose()
+    {
+        _disposables?.Dispose();
+        _disposables = new CompositeDisposable(); // 재사용 가능하게 초기화(선택)
+    }
+
+    // ====== Public API ======
+
+    /// <summary>디바운스 저장 트리거.</summary>
+    public void RequestSave() => _saveRequest.OnNext(Unit.Default);
+
+    
 
     // ====== Domain Helpers (변경 + 저장 트리거) ======
 
