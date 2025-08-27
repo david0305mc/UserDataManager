@@ -45,8 +45,6 @@ public class SkillDataDto
 /// 런타임 모델(게임 로직에서 사용).
 /// 내부 상태는 캡슐화하고, 읽기 전용 인터페이스로만 노출한다.
 /// </summary>
-/// 
-/// 
 public class ItemData
 {
     public long ItemID;
@@ -134,8 +132,8 @@ public sealed class UserData
         }
         else
         {
-            _skills[skillId] = new SkillData { SkillID = skillId, SkillLevel = new ReactiveProperty<int>(Mathf.Max(1, level))  };
-        }        
+            _skills[skillId] = new SkillData { SkillID = skillId, SkillLevel = new ReactiveProperty<int>(Mathf.Max(1, level)) };
+        }
     }
 
     public bool RemoveCoral(long coralId) => _corals.Remove(coralId);
@@ -149,7 +147,7 @@ public sealed class UserData
     private void InitCorals()
     {
         _corals.Clear();
-        for (int i = 1; i < 10; i++)
+        for (long i = 1; i < 10; i++)
         {
             _corals[i] = new CoralData(i, 1);
         }
@@ -157,7 +155,7 @@ public sealed class UserData
     private void InitItems()
     {
         _items.Clear();
-        for (int i = 1; i < 10; i++)
+        for (long i = 1; i < 10; i++)
         {
             _items.Add(new ItemData { ItemID = i, ItemLevel = 1 });
         }
@@ -165,13 +163,12 @@ public sealed class UserData
     private void InitSkills()
     {
         _skills.Clear();
-        for (int i = 1; i < 10; i++)
+        for (long i = 1; i < 10; i++)
         {
-            _skills[i] = new SkillData { SkillID = i, SkillLevel =new ReactiveProperty<int>(1) }; 
+            _skills[i] = new SkillData { SkillID = i, SkillLevel = new ReactiveProperty<int>(1) };
         }
     }
 }
-
 
 public partial class UserDataManager : Singleton<UserDataManager>, IDisposable
 {
