@@ -24,7 +24,7 @@ public sealed class UserDataDto
     public int StoneLevel = 1;
     public Dictionary<int, CoralDataDto> Corals = new Dictionary<int, CoralDataDto>();
     public List<ItemDataDto> Items = new List<ItemDataDto>();
-    public List<SkillDataDto> Skills = new List<SkillDataDto>();
+    public Dictionary<int, SkillDataDto> Skills = new Dictionary<int, SkillDataDto>(); 
 }
 
 [Serializable]
@@ -172,7 +172,8 @@ public sealed class UserData
     }
 }
 
-public sealed class UserDataManager : Singleton<UserDataManager>, IDisposable
+
+public partial class UserDataManager : Singleton<UserDataManager>, IDisposable
 {
     private static readonly string _dirPath = Application.persistentDataPath;
     private static readonly string _fileName = "userdata.json";
@@ -220,7 +221,7 @@ public sealed class UserDataManager : Singleton<UserDataManager>, IDisposable
     /// <summary>즉시 저장(디바운스 미적용). 보통은 RequestSave() 사용.</summary>
     public async UniTask Save()
     {
-        var dto = ToDto(UserData);
+        var dto = UserData.ToDto();
         await SaveAsync(dto);
     }
 
@@ -232,7 +233,7 @@ public sealed class UserDataManager : Singleton<UserDataManager>, IDisposable
     {
         var dto = await LoadAsync();
         dto ??= new UserDataDto();
-        UserData = FromDto(dto);
+        UserData = dto.FromDto(); 
 
         // 대표 변경 스트림 → 디바운스 저장
         var sub = UserData.StoneLevel
@@ -244,74 +245,6 @@ public sealed class UserDataManager : Singleton<UserDataManager>, IDisposable
 
         Debug.Log("[UserData] Load complete");
     }
-
-    // ====== Mapping ======
-
-    private static UserDataDto ToDto(UserData runtime)
-    {
-        var dto = new UserDataDto
-        {
-            Version = 1,
-            StoneId = runtime.StoneId,
-            StoneLevel = runtime.StoneLevel.Value,
-            Corals = new Dictionary<int, CoralDataDto>(),
-            Items = new List<ItemDataDto>(),
-            Skills = new List<SkillDataDto>()
-        };
-
-        foreach (var kv in runtime.Corals)
-        {
-            dto.Corals[kv.Key] = new CoralDataDto
-            {
-                CoralId = kv.Value.CoralId,
-                CoralLevel = kv.Value.CoralLevel
-            };
-        }
-        foreach (var item in runtime.Items)
-        {
-            dto.Items.Add(new ItemDataDto
-            {
-                ItemID = item.ItemID,
-                ItemLevel = item.ItemLevel
-            });
-        }
-        foreach (var skill in runtime.Skills)
-        {
-            dto.Skills.Add(new SkillDataDto
-            {
-                SkillID = skill.Value.SkillID,
-                SkillLevel = skill.Value.SkillLevel.Value
-            });
-        }
-        return dto;
-    }
-
-    private static UserData FromDto(UserDataDto dto)
-    {
-        var runtime = new UserData();
-        runtime.InitData();
-        runtime.SetStoneId(dto.StoneId);
-        runtime.SetStoneLevel(dto.StoneLevel <= 0 ? 1 : dto.StoneLevel);
-
-        if (dto.Corals != null)
-        {
-            foreach (var kv in dto.Corals)
-                runtime.UpsertCoral(kv.Key, Mathf.Max(1, kv.Value.CoralLevel));
-        }
-        if (dto.Items != null)
-        {
-            foreach (var item in dto.Items)
-                runtime.UpsertItem((int)item.ItemID, Mathf.Max(1, item.ItemLevel));
-        }
-        if (dto.Skills != null)
-        {
-            foreach (var skill in dto.Skills)
-                runtime.UpsertSkill((int)skill.SkillID, Mathf.Max(1, skill.SkillLevel));
-        }
-        // 필요시 Version 스위치로 마이그레이션
-        return runtime;
-    }
-
     // ====== IO ======
 
     private static async UniTask SaveAsync(UserDataDto dto)
@@ -413,5 +346,108 @@ public sealed class UserDataManager : Singleton<UserDataManager>, IDisposable
     {
         UserData.UpsertSkill(skillId, level);
         RequestSave();
+    }
+}
+
+public static class UserDataMapper
+{
+    public static Dictionary<TKey, TDto> MapDict<TKey, TVal, TDto>(
+        IReadOnlyDictionary<TKey, TVal> src,
+        Func<TVal, TDto> mapper)
+    {
+        var dst = new Dictionary<TKey, TDto>(src.Count);
+        foreach (var kv in src) dst[kv.Key] = mapper(kv.Value);
+        return dst;
+    }
+
+    public static List<TDto> MapList<TSrc, TDto>(IReadOnlyList<TSrc> src, Func<TSrc, TDto> mapper)
+    {
+        var list = new List<TDto>(src.Count);
+        for (int i = 0; i < src.Count; i++) list.Add(mapper(src[i]));
+        return list;
+    }
+    public static UserDataDto ToDto(this UserData runtime)
+    {
+        var dto = new UserDataDto
+        {
+            Version = 1,
+            StoneId = runtime.StoneId,
+            StoneLevel = runtime.StoneLevel.Value,
+            Corals = MapDict(runtime.Corals, ToDto),
+            Items = MapList(runtime.Items, ToDto),
+            Skills = MapDict(runtime.Skills, ToDto)
+        };
+        return dto;
+    }
+    public static UserData FromDto(this UserDataDto dto)
+    {
+        var runtime = new UserData();
+        runtime.InitData();
+        runtime.SetStoneId(dto.StoneId);
+        runtime.SetStoneLevel(dto.StoneLevel <= 0 ? 1 : dto.StoneLevel);
+
+        if (dto.Corals != null)
+        {
+            foreach (var kv in dto.Corals)
+                runtime.UpsertCoral(kv.Key, Mathf.Max(1, kv.Value.CoralLevel));
+        }
+        if (dto.Items != null)
+        {
+            foreach (var item in dto.Items)
+                runtime.UpsertItem((int)item.ItemID, Mathf.Max(1, item.ItemLevel));
+        }
+        if (dto.Skills != null)
+        {
+            foreach (var skill in dto.Skills)
+                runtime.UpsertSkill((int)skill.Value.SkillID, Mathf.Max(1, skill.Value.SkillLevel));
+        }
+        // 필요시 Version 스위치로 마이그레이션
+        return runtime;
+    }
+
+    public static CoralDataDto ToDto(this CoralData runtime)
+    {
+        return new CoralDataDto
+        {
+            CoralId = runtime.CoralId,
+            CoralLevel = runtime.CoralLevel
+        };
+    }
+    public static CoralData FromDto(this CoralDataDto dto)
+    {
+        return new CoralData(dto.CoralId, dto.CoralLevel);
+    }
+
+    public static ItemDataDto ToDto(this ItemData runtime)
+    {
+        return new ItemDataDto
+        {
+            ItemID = runtime.ItemID,
+            ItemLevel = runtime.ItemLevel
+        };
+    }
+    public static ItemData FromDto(this ItemDataDto dto)
+    {
+        return new ItemData
+        {
+            ItemID = dto.ItemID,
+            ItemLevel = dto.ItemLevel
+        };
+    }
+    public static SkillDataDto ToDto(this SkillData runtime)
+    {
+        return new SkillDataDto
+        {
+            SkillID = runtime.SkillID,
+            SkillLevel = runtime.SkillLevel.Value
+        };
+    }
+    public static SkillData FromDto(this SkillDataDto dto)
+    {
+        return new SkillData
+        {
+            SkillID = dto.SkillID,
+            SkillLevel = new ReactiveProperty<int>(dto.SkillLevel)
+        };
     }
 }
