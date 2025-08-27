@@ -75,6 +75,19 @@ public sealed class UserData
     }
 
     public bool RemoveCoral(int coralId) => _corals.Remove(coralId);
+
+    public void InitData()
+    {
+        InitCorals();
+    }
+    private void InitCorals()
+    {
+        _corals.Clear();
+        for (int i = 1; i < 10; i++)
+        {
+            _corals[i] = new CoralData(i, 1);
+        }
+    }
 }
 
 public sealed class UserDataManager : Singleton<UserDataManager>, IDisposable
@@ -176,6 +189,7 @@ public sealed class UserDataManager : Singleton<UserDataManager>, IDisposable
     private static UserData FromDto(UserDataDto dto)
     {
         var runtime = new UserData();
+        runtime.InitData();
         runtime.SetStoneId(dto.StoneId);
         runtime.SetStoneLevel(dto.StoneLevel <= 0 ? 1 : dto.StoneLevel);
 
