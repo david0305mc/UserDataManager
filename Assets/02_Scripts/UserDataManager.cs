@@ -22,6 +22,7 @@ public sealed class UserDataDto
     public int Version = 1;                    // 스키마 마이그레이션 대비
     public long StoneId;
     public int StoneLevel = 1;
+    public PlayerDataDto Player = new PlayerDataDto();
     public Dictionary<long, CoralDataDto> Corals = new Dictionary<long, CoralDataDto>();
     public List<ItemDataDto> Items = new List<ItemDataDto>();
     public Dictionary<long, SkillDataDto> Skills = new Dictionary<long, SkillDataDto>(); 
@@ -41,6 +42,13 @@ public class SkillDataDto
     public int SkillLevel;
 }
 
+[Serializable]
+public class PlayerDataDto
+{
+    public long Uid;
+    public long UidSeed;
+}
+
 /// <summary>
 /// 런타임 모델(게임 로직에서 사용).
 /// 내부 상태는 캡슐화하고, 읽기 전용 인터페이스로만 노출한다.
@@ -56,6 +64,12 @@ public class SkillData
     public long SkillID;
     public ReactiveProperty<int> SkillLevel;
 }
+public class PlayerData
+{
+    public long Uid;
+    public long UidSeed;
+}
+
 
 public sealed class CoralData
 {
@@ -87,6 +101,8 @@ public sealed class UserData
 
     private readonly Dictionary<long, SkillData> _skills = new();
     public IReadOnlyDictionary<long, SkillData> Skills => _skills;
+
+    public PlayerData Player = new();
 
     public UserData() { }
 
@@ -143,6 +159,12 @@ public sealed class UserData
         InitCorals();
         InitItems();
         InitSkills();
+        InitPlayer();
+    }
+    private void InitPlayer()
+    {
+        Player.Uid = 0;
+        Player.UidSeed = 0;
     }
     private void InitCorals()
     {
@@ -188,14 +210,6 @@ public partial class UserDataManager : Singleton<UserDataManager>, IDisposable
         var dto = await LoadAsync();
         dto ??= new UserDataDto();
         UserData = dto.FromDto();
-
-        // 대표 변경 스트림 → 디바운스 저장
-        var sub = UserData.StoneLevel
-            .Skip(1)
-            .ObserveOnMainThread()
-            .Subscribe(_ => RequestSave());
-
-        _disposables.Add(sub);
 
         Debug.Log("[UserData] Load complete");
     }
@@ -311,7 +325,7 @@ public partial class UserDataManager : Singleton<UserDataManager>, IDisposable
     /// <summary>디바운스 저장 트리거.</summary>
     public void RequestSave() => _saveRequest.OnNext(Unit.Default);
 
-    
+
 
     // ====== Domain Helpers (변경 + 저장 트리거) ======
 
@@ -349,6 +363,11 @@ public partial class UserDataManager : Singleton<UserDataManager>, IDisposable
         UserData.UpsertSkill(skillId, level);
         RequestSave();
     }
+    public void SetPlayerUid(long uid)
+    {
+        UserData.Player.Uid = uid;
+        RequestSave();
+    }
 }
 
 public static class UserDataMapper
@@ -375,6 +394,12 @@ public static class UserDataMapper
             Version = 1,
             StoneId = runtime.StoneId,
             StoneLevel = runtime.StoneLevel.Value,
+            Player = new PlayerDataDto
+            {
+                Uid = runtime.Player.Uid,
+                UidSeed = runtime.Player.UidSeed
+            },
+
             Corals = MapDict(runtime.Corals, ToDto),
             Items = MapList(runtime.Items, ToDto),
             Skills = MapDict(runtime.Skills, ToDto)
@@ -387,6 +412,8 @@ public static class UserDataMapper
         runtime.InitData();
         runtime.SetStoneId(dto.StoneId);
         runtime.SetStoneLevel(dto.StoneLevel <= 0 ? 1 : dto.StoneLevel);
+        runtime.Player.Uid = dto.Player?.Uid ?? 0;
+        runtime.Player.UidSeed = dto.Player?.UidSeed ?? 0;
 
         if (dto.Corals != null)
         {

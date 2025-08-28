@@ -8,6 +8,7 @@ public class UIMain : MonoBehaviour
     [SerializeField] private Button increaseRandomCoralLevelButton;
     [SerializeField] private Button itemButton;
     [SerializeField] private Button skillButton;
+    [SerializeField] private Button uidSeed;
     [SerializeField] private TextMeshProUGUI descText;
 
     void Awake()
@@ -58,6 +59,11 @@ public class UIMain : MonoBehaviour
             }
             UpdateUI();
         });
+        uidSeed.onClick.AddListener(() =>
+        {
+            UserDataManager.Instance.SetPlayerUid(UserDataManager.Instance.UserData.Player.Uid + 1);
+            UpdateUI();
+        });
         UpdateUI();
     }
     private void UpdateUI()
@@ -77,6 +83,7 @@ public class UIMain : MonoBehaviour
         {
             descText.text += $" - Item {item.ItemID}: Level {item.ItemLevel}\n";
         }
+        descText.text += $"Player UID: {UserDataManager.Instance.UserData.Player.Uid}\n";
     }
 
 }
